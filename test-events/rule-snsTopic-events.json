@@ -1,0 +1,32 @@
+[
+    {
+        "Source": "com.aws.orders",
+        "DetailType": "Order Notification",
+        "Detail": "{ \"category\": \"lab-supplies\", \"value\": 415, \"location\": \"us-west\" }",
+        "EventBusName": "orders"
+    },
+    {
+        "Source": "com.aws.orders",
+        "DetailType": "Order Notification",
+        "Detail": "{ \"category\": \"lab-supplies\", \"value\": 720, \"location\": \"us-east\" }",
+        "EventBusName": "orders"
+    },
+    {
+        "Source": "com.aws.orders",
+        "DetailType": "Order Notification",
+        "Detail": "{ \"category\": \"lab-supplies\", \"value\": 827, \"location\": \"us-ne\" }",
+        "EventBusName": "orders"
+    },
+    {
+        "Source": "com.aws.orders",
+        "DetailType": "Order Notification",
+        "Detail": "{ \"category\": \"lab-supplies\", \"value\": 960, \"location\": \"us-east\" }",
+        "EventBusName": "orders"
+    },
+    {
+        "Source": "com.aws.orders",
+        "DetailType": "Order Notification",
+        "Detail": "{ \"category\": \"lab-equipment\", \"value\": 361715, \"location\": \"us-east\" }",
+        "EventBusName": "orders"
+    }
+]
