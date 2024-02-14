@@ -20,9 +20,9 @@ The diagram below depicts the EDA workload committed on this repository:
 ![Architecture Diagram](/images/EDA-diagram.png)
 <p align="center">Event Driven Architecture Diagram</p>
 
-Using the AWS Management Console, the user sends an event to the EventBus (1). EventBridge checks the event’s metadata against the three rules created for this workload (2). All rules are evaluated simultaneously, and the event can match more than one rule.
+Using the AWS Management Console, the user sends an event to the Event bus (1). EventBridge checks the event’s metadata against the three rules created for this workload (2). All rules are evaluated simultaneously, and the event can match more than one rule.
 
-If the event’s metadata matches the criteria in `rule-stateMachine`, it triggers the execution of an AWS StepFunction ([`AWS::StepFunctions::StateMachine`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-stepfunctions-statemachine.html)) (3). If the matched rule is `rule-api`, the event is sent to an API Endpoint ([`AWS::Serverless::Api`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-apigatewayv2-api.html)) (4). A Lambda Function is executed, and the result is logged in CloudWatch (5). Finally, if `rule-snsTopic` matches the event, it is sent to a SNS Topic ([`AWS::SNS::Topic`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sns-topic.html)) (6). From there, the message is sent to an SQS Queue ([`AWS::SQS::Queue`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queue.html)) subscribed to the Topic (7). The Queue has its dead-letter queue configured, and if an error occurs, The Topic's `LoggingConfig` property handles logging in CloudWatch (8).
+If the event’s metadata matches the criteria in `rule-stateMachine`, it triggers the execution of an AWS StepFunction ([`AWS::StepFunctions::StateMachine`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-stepfunctions-statemachine.html)) (3). If the matched rule is `rule-api`, the event is sent to an API Endpoint ([`AWS::Serverless::Api`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-apigatewayv2-api.html)) (4). A Lambda Function is executed, and the result is logged in CloudWatch (5). Finally, if `rule-snsTopic` matches the event, it is sent to a SNS Topic ([`AWS::SNS::Topic`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sns-topic.html)) (6). From there, the message is sent to an SQS Queue ([`AWS::SQS::Queue`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queue.html)) subscribed to the Topic (7). The Queue has its dead-letter queue configured and, if an error occurs, the Topic's `LoggingConfig` property handles logging in CloudWatch (8).
 
 ### Usage
 
@@ -44,11 +44,11 @@ Quite a long command, right? It deserves some pointers:
 - `ParameterKey` and `ParameterValue` are parameters been passed to CloudFormation. There is a Lambda Function that will perform a very simple authentication method: it compares `user` and `password` parameters against the hard-coded “myUser” and “myPassword” values. If those exact values are not passed, you will see an unauthorized access exception on CloudWatch logs. Deploying the stack from the CloudFormation page eliminates that risk. The parameters field are filled with the default values automatically.
 - `CAPABILITY_IAM` grants CloudFormation permissions to IAM resources (Roles, Policies and Users) within the stack.
 - `CAPABILITY_NAMED_IAM` grants CloudFormation permission to create named IAM resources (especially custom named roles) described within the stack.
-- `CAPABILITY_AUTO_EXPAND` allows CloudFormations to execute macros necessary to deploy some of the resources within the stack.
+- `CAPABILITY_AUTO_EXPAND` allows CloudFormations to run macros necessary to deploy some of the resources within the stack.
 
 ### Testing the Workload
 
-After the stack is successfully deployed, open the AWS EventBridge page on the AWS Management Console. There is a link to the Event bus created by this stack in the outputs tab. In the CloudFormation page, at the output tab, there is a link to EventBridge’s order EventBus. First, head over to the Rules page in the navigation menu. Let’s look at the event and rules configurations.
+After the stack is successfully deployed, open the AWS EventBridge page on the AWS Management Console. There is a link to the `orders` event bus created by the stack in the outputs tab. First, head over to the Rules page in the navigation menu. Let’s look at the event and rules configurations.
 
 !["CloudFormation Stacks Page"](/images/outputs.png)
 
@@ -71,11 +71,23 @@ The JSON below describes the event metadata. The `source`, `detail.location`, an
 }
 ```
 
+Make sure that you selected the `orders` Event bus. The default event bus may appear selected because, well, its the **default** event bus. 
+
+Click on each of the rules displayed on the Rules page. Take a look at the **event pattern** of each rule. These patterns are compared against the rules for any event we send to the orders event bus. You'll see that everything connects in just a little while.
+
 Now head over to the “Event buses” page. Let’s trigger some rules.
 
 #### The rule-api
 
-The rule-api has only one criterion: the Source property of the event must have a value of “com.aws.orders”. Make sure that you selected the `orders` Event bus.
+The rule-api has only one criterion: the source property of the event must be equal to “com.aws.orders”.
+
+Click on the rule to see its Event pattern.
+
+```json
+{
+  "source": ["com.aws.orders"]
+}
+```
 
 !["Triggering the API rule"](/images/rule-api.png)
 
@@ -92,9 +104,20 @@ The Event detail field can be filled with any type of JSON format data, as the e
 
 #### The rule-stateMachine
 
+Here's the rule event pattern:
+
+```json
+{
+  "source": ["com.aws.orders"],
+  "detail": {
+    "location": ["eu-east", "eu-west"]
+  }
+}
+```
+
 The rule-stateMachine evaluates the following conditions:
 
-Source field value is “com.aws.orders”, and
+Source field value is equal to “com.aws.orders”, and
 The detail.location property must have either “eu-east” or “eu-west” values.
 
 !["Triggering the API rule"](/images/rule-stateMachine.png)
@@ -105,6 +128,18 @@ You can ascertain that the rule was triggered by heading over to the StepFunctio
 
 #### The rule-snsTopic
 
+Look at the rule-snsTopic event pattern below:
+
+```json
+{
+  "source": ["com.aws.orders"],
+  "detail": {
+    "location": ["us-east", "us-west"],
+    "category": ["lab-supplies"]
+  }
+}
+```
+
 The rule-snsTopic evaluates the following conditions:
 
 - Source field value is “com.aws.orders”,
@@ -113,13 +148,13 @@ The rule-snsTopic evaluates the following conditions:
 
 ![ ](/images/rule-snsTopic.png)
 
-You can verify that the rule was triggered by going to the SQS Queue of the stack. There should be one message there waiting to be polled, as shown in the image below.
+You can verify that the rule was triggered by going to the SQS Queue of the stack. There should be messages there waiting to be polled.
 
 ![ ](/images/sqs-total-messages.png)
 
 If an error occurs, the details (probably the SNS Topic not having the right permissions to send messages to the SQS Queue) can be found in the CloudWatch’s log group.
 
-### Sending Multiple Events to the EventBus
+### Sending Multiple Events to the orders event bus
 
 The [`/test-events`](/test-events/) folder has two files that help you send multiple events related to rule-stateMachine and rule-snsTopic rules. These events were used for testing purposes; therefore, not every event will match the rules.
 
@@ -135,7 +170,7 @@ Run the following command in the CLI to test against the `rule-snsTopic` rule:
 aws events put-events --entries file://test-events/rule-snsTopic-events.json
 ```
 
-### 5. Conclusion
+### Conclusion
 
 This repository provides a comprehensive example of implementing an Event Driven Architecture (EDA) on AWS using CloudFormation templates and AWS services like EventBridge, Lambda, Step Functions, SNS, and SQS. By following the instructions in this README, you can deploy the EDA workload and understand how events are processed through various rules and services in the architecture. The [`event-driven-architecture.yaml`](/cf-template/event-driven-architecture.yaml) file is a great starting point for developing large, complex EDA workloads to manage thousands of AWS Services.
 
@@ -143,6 +178,6 @@ Implementing an EDA can bring several benefits to your AWS infrastructure, inclu
 
 Always tear down the applications after you finish your practice sessions. To do this, simply head over to the CloudFormation page, then stacks and click the `Delete` button.
 
-### 6. Contact Me
+### Contact Me
 
 For any questions, feedback, or inquiries, feel free to reach out to me at tarcisio.roberto@gmail.com. I welcome any suggestions for improving this repository or discussing AWS architecture and best practices further.
